@@ -9,13 +9,13 @@ namespace NGM.IPS.Client.HelloWorld
         // Имя, отображаемое в описании модуля расширения
         public string Name => "Пример клиентского расширения IPS";
 
-        private static IServiceProvider _ipsServiseProvider;
+        private static IServiceProvider _ipsServiceProvider;
 
         public void Load(IServiceProvider serviceProvider)
         {
-            _ipsServiseProvider = serviceProvider;
+            _ipsServiceProvider = serviceProvider;
 
-            IPluginManager plugins = (IPluginManager)_ipsServiseProvider.GetService(typeof(IPluginManager));
+            IPluginManager plugins = (IPluginManager)_ipsServiceProvider.GetService(typeof(IPluginManager));
             plugins.LoadComplete += PluginLoadComplete;
         }
 
