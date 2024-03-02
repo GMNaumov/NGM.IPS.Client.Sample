@@ -9,6 +9,6 @@ namespace NGM.IPS.Client.ObjectCreator.BusinessLogic
 {
     internal class IpsObjectType
     {
-        SystemGUIDs
+        
     }
 }
