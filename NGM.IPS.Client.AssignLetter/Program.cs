@@ -1,12 +1,13 @@
 ﻿using Intermech.Bars;
 using Intermech.DataFormats;
+using Intermech.Interfaces;
+using Intermech.Interfaces.Client;
 using Intermech.Interfaces.Plugins;
-using Intermech.Navigator.ContextMenu;
-using Intermech.Navigator.SelectionView;
+using Intermech.Navigator;
 using Intermech.Navigator.Interfaces;
+using Intermech.Search;
 using System;
 using System.Windows.Forms;
-using Intermech.Search;
 
 namespace NGM.IPS.Client.AssignLetter
 {
@@ -60,32 +61,64 @@ namespace NGM.IPS.Client.AssignLetter
 
                 int count = _selectedItems.Count;
 
-                if (count > 10)
+                if (count == 1)
                 {
-                    MessageBox.Show("Выделено слишком много объектов");
+                    IDBTypedObjectID objectID = _selectedItems.GetItemData(0, typeof(IDBTypedObjectID)) as IDBTypedObjectID;
+
+                    if (IsObjectAssignable(objectID.ObjectType))
+                    {
+                        MessageBox.Show($"objectID.ID: {objectID.ID} || objectID.ObjectType: {objectID.ObjectType} || objectID.ObjectID:  {objectID.ObjectID} || objectID.Owner:  {objectID.Owner} || objectID.Caption:  {objectID.Caption} || objectID.SiteID:  {objectID.SiteID}");
+
+                        
+                        
+                        long letterAssignerDocID = GetLetterAssignerDocId();
+                        MessageBox.Show(letterAssignerDocID.ToString());
+
+                    }
+                    else
+                    {
+                        MessageBox.Show("Для данного типа объекта нельзя назначить решение о присвоении литеры.\n\nВыберите тип объекта Деталь или Сборочная единица", "Некорректный тип объекта", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+
                 }
                 else
                 {
-                    MessageBox.Show($"Выделено {count} объектов");
-
-                    for (int i = 0; i < count; i++)
-                    {
-                        // Попытка получить описание следующего выделенного объекта из коллекции
-                        IDBTypedObjectID objectID = _selectedItems.GetItemData(i, typeof(IDBTypedObjectID)) as IDBTypedObjectID;
-
-                        MessageBox.Show($"objectID.ID: {objectID.ID} || objectID.ObjectType: {objectID.ObjectType} || objectID.ObjectID:  {objectID.ObjectID} || objectID.Owner:  {objectID.Owner} || objectID.Caption:  {objectID.Caption} || objectID.SiteID:  {objectID.SiteID}");
-                    }
+                    MessageBox.Show("Выделено слишком много объектов");
                 }
             }
             catch (NullReferenceException exeption)
             {
                 MessageBox.Show("Выделите объекты типа Сборочная единица или Деталь в Навигаторе IPS для назначения литеры");
             }
+
+
         }
 
         public void Unload()
         {
 
+        }
+
+        private bool IsObjectAssignable(int objectType)
+        {
+            return (objectType == 1052) || (objectType == 1074);
+        }
+
+
+        /// <summary>
+        /// Отображение стандартного окна IPS для выбора объектов с фильтрацией по типу объектов "Решение о присвоении литеры"
+        /// </summary>
+        /// <returns>Идентификатор выбранного объекта типа "Решение о присвоении литеры"</returns>
+        private long GetLetterAssignerDocId()
+        {
+            // Получаем целочисленное значение типа объекта IPS по его GUID
+            int letterAssignerDocTypeID = MetaDataHelper.GetObjectTypeID(new Guid("95984126-f9fa-452e-b4ce-2bb4572bb347"));
+
+            // Отображаем окно выбора объекта IPS. Используем вариант "попроще" - SelectObjects(). Аргументами SelectionOptions настраиваем процесс выбора объектов в окне. Удобненько.
+            // Так же существует вариант "пожощще" - Select(), но там нужно разбираться с дескрипторами окон и прочей гадостью. Фу.
+            long[] letterAssignerDocsIDs = SelectionWindow.SelectObjects("Выберите объект", "Выберите документ-решение о присвоении литеры", letterAssignerDocTypeID, SelectionOptions.HideTree | SelectionOptions.SelectObjects | SelectionOptions.DisableMultiselect);
+
+            return letterAssignerDocsIDs.Length == 1 ? letterAssignerDocsIDs[0] : -1L;
         }
     }
 }
