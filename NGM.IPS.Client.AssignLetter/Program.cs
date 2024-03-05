@@ -67,13 +67,18 @@ namespace NGM.IPS.Client.AssignLetter
 
                     if (IsObjectAssignable(objectID.ObjectType))
                     {
-                        MessageBox.Show($"objectID.ID: {objectID.ID} || objectID.ObjectType: {objectID.ObjectType} || objectID.ObjectID:  {objectID.ObjectID} || objectID.Owner:  {objectID.Owner} || objectID.Caption:  {objectID.Caption} || objectID.SiteID:  {objectID.SiteID}");
+                        string letterCurrentValue = GetLetterCurrentValue(objectID.ObjectID);
 
-                        
-                        
-                        long letterAssignerDocID = GetLetterAssignerDocId();
-                        MessageBox.Show(letterAssignerDocID.ToString());
-
+                        if (string.IsNullOrWhiteSpace(letterCurrentValue))
+                        {
+                            MessageBox.Show("Литера документу не назначена. Продолжаем разговор!");
+                            long letterAssignerDocID = GetLetterAssignerDocId();
+                            MessageBox.Show(letterAssignerDocID.ToString());
+                        }
+                        else
+                        {
+                            MessageBox.Show($"Эй, Ара, тормози! У объекта уже есть литера: {letterCurrentValue}. Надо думать что придумать...");
+                        }
                     }
                     else
                     {
@@ -119,6 +124,26 @@ namespace NGM.IPS.Client.AssignLetter
             long[] letterAssignerDocsIDs = SelectionWindow.SelectObjects("Выберите объект", "Выберите документ-решение о присвоении литеры", letterAssignerDocTypeID, SelectionOptions.HideTree | SelectionOptions.SelectObjects | SelectionOptions.DisableMultiselect);
 
             return letterAssignerDocsIDs.Length == 1 ? letterAssignerDocsIDs[0] : -1L;
+        }
+
+        /// <summary>
+        /// Получение значения атрибута Литера по идентификатору версии объекта
+        /// </summary>
+        /// <returns>Текущее строковое значение атрибута Литера</returns>
+        private string GetLetterCurrentValue(long objectVersionID)
+        {
+            string letterCurrentValue;
+
+            // Значение атрибута Идентификатор аттрибута Литера
+            int letterAttributeID = 1145;
+
+            using (SessionKeeper sessionKeeper = new SessionKeeper())
+            {
+                IDBAttribute attribute = sessionKeeper.Session.GetObjectAttribute(objectVersionID, letterAttributeID, false, false);
+                letterCurrentValue = attribute.AsString;
+            }
+
+            return letterCurrentValue;
         }
     }
 }
