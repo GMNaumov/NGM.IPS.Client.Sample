@@ -43,8 +43,10 @@ namespace NGM.IPS.Client.AssignLetter
             // Уникальное имя кнопки, по которому будет выполняться поиск 
             menuButton.CommandName = "AssignLetterButton";
 
+            // Назначаем текст всплывающей подсказки при наведении на кастомную кнопку 
             menuButton.ToolTipText = "Присвоить литеру на основании документа-решения";
 
+            // Назначаем обработчик события нажатия на кнопку
             menuButton.Click += LetterAssign;
 
             menuBar.Items.Add(menuItem);
@@ -104,9 +106,18 @@ namespace NGM.IPS.Client.AssignLetter
 
         }
 
+
+        /// <summary>
+        /// Проверка выделенных в Навигаторе объектов IPS на возможность присвоения литеры
+        /// </summary>
+        /// <param name="objectType">Тип выделенного объекта IPS</param>
+        /// <returns>true - если на выбранный тип объектов можно назначить литеру</returns>
         private bool IsObjectAssignable(int objectType)
         {
-            return (objectType == 1052) || (objectType == 1074);
+            int detailObjectID = 1052;
+            int assemblyObjectID = 1074;
+
+            return (objectType == detailObjectID) || (objectType == assemblyObjectID);
         }
 
 
@@ -139,6 +150,7 @@ namespace NGM.IPS.Client.AssignLetter
 
             using (SessionKeeper sessionKeeper = new SessionKeeper())
             {
+                // Получаем по идентификатору версии объекта и идентификатору атрибута объект типа IDBAttribute
                 IDBAttribute attribute = sessionKeeper.Session.GetObjectAttribute(objectVersionID, letterAttributeID, false, false);
                 letterCurrentValue = attribute.AsString;
             }
