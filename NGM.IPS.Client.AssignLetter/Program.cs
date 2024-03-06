@@ -75,7 +75,16 @@ namespace NGM.IPS.Client.AssignLetter
                         {
                             MessageBox.Show("Литера документу не назначена. Продолжаем разговор!");
                             long letterAssignerDocID = GetLetterAssignerDocId();
-                            MessageBox.Show(letterAssignerDocID.ToString());
+
+                            long newRelationWithObjectAndLiteraAssigner = CreateNewRelationWithObjectAndLiteraAssigner(objectID.ObjectID, letterAssignerDocID);
+                            if (newRelationWithObjectAndLiteraAssigner == -1)
+                            {
+                                MessageBox.Show("Новая связь не создана. Косячок-с...");
+                            }
+                            else
+                            {
+                                MessageBox.Show($"Ура, создали новую связь. Ыдынтефикатор: {newRelationWithObjectAndLiteraAssigner}");
+                            }
                         }
                         else
                         {
@@ -156,6 +165,39 @@ namespace NGM.IPS.Client.AssignLetter
             }
 
             return letterCurrentValue;
+        }
+
+
+        /// <summary>
+        /// Создание новой связи объекта (Детали или Сборочной единицы) и Документа-решения о присвоении литеры
+        /// </summary>
+        /// <returns>Идентификатор созданной связи</returns>
+        private long CreateNewRelationWithObjectAndLiteraAssigner(long objectID, long literaAssignerID)
+        {
+            long newRelationID = -1;
+
+            // Идентификатор типа связи "Основание для присвоения литеры"
+            // ToDo На разных установках IPS будет отличаться, необходо вынести в файл конфигурации
+            int literaAssignRelationID = 1212;
+
+            try
+            {
+                using(SessionKeeper sessionKeeper = new SessionKeeper())
+                {
+                    // Получаем коллекцию связей типа "Основание для присвоения литеры"
+                    IDBRelationCollection relationCollection = sessionKeeper.Session.GetRelationCollection(literaAssignRelationID);
+
+                    // Создаём новую связь типа "Основание для присвоения литеры"
+                    IDBRelation newRelation = relationCollection.Create(objectID, literaAssignerID);
+                    newRelationID = newRelation.RelationID;
+                }
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(exception.Message);
+            }
+
+            return newRelationID;
         }
     }
 }
