@@ -65,25 +65,25 @@ namespace NGM.IPS.Client.AssignLetter
 
                 if (count == 1)
                 {
-                    IDBTypedObjectID objectID = _selectedItems.GetItemData(0, typeof(IDBTypedObjectID)) as IDBTypedObjectID;
+                    IDBTypedObjectID ipsObjectID = _selectedItems.GetItemData(0, typeof(IDBTypedObjectID)) as IDBTypedObjectID;
 
-                    if (IsObjectAssignable(objectID.ObjectType))
+                    if (IsObjectAssignable(ipsObjectID.ObjectType))
                     {
-                        string letterCurrentValue = GetLetterCurrentValue(objectID.ObjectID);
+                        string letterCurrentValue = GetLetterCurrentValue(ipsObjectID.ObjectID);
 
                         if (string.IsNullOrWhiteSpace(letterCurrentValue))
                         {
                             MessageBox.Show("Литера документу не назначена. Продолжаем разговор!");
                             long letterAssignerDocID = GetLetterAssignerDocId();
 
-                            long newRelationWithObjectAndLiteraAssigner = CreateNewRelationWithObjectAndLiteraAssigner(objectID.ObjectID, letterAssignerDocID);
+                            long newRelationWithObjectAndLiteraAssigner = CreateNewRelationWithObjectAndLiteraAssigner(ipsObjectID.ObjectID, letterAssignerDocID);
                             if (newRelationWithObjectAndLiteraAssigner == -1)
                             {
                                 MessageBox.Show("Новая связь не создана. Косячок-с...");
                             }
                             else
                             {
-                                MessageBox.Show($"Ура, создали новую связь. Ыдынтефикатор: {newRelationWithObjectAndLiteraAssigner}");
+                                GetLetterFromDocAndAssignToObject(ipsObjectID.ObjectID, letterAssignerDocID);
                             }
                         }
                         else
@@ -119,14 +119,14 @@ namespace NGM.IPS.Client.AssignLetter
         /// <summary>
         /// Проверка выделенных в Навигаторе объектов IPS на возможность присвоения литеры
         /// </summary>
-        /// <param name="objectType">Тип выделенного объекта IPS</param>
+        /// <param name="ipsObjectType">Тип выделенного объекта IPS</param>
         /// <returns>true - если на выбранный тип объектов можно назначить литеру</returns>
-        private bool IsObjectAssignable(int objectType)
+        private bool IsObjectAssignable(int ipsObjectType)
         {
             int detailObjectID = 1052;
             int assemblyObjectID = 1074;
 
-            return (objectType == detailObjectID) || (objectType == assemblyObjectID);
+            return (ipsObjectType == detailObjectID) || (ipsObjectType == assemblyObjectID);
         }
 
 
@@ -150,7 +150,7 @@ namespace NGM.IPS.Client.AssignLetter
         /// Получение значения атрибута Литера по идентификатору версии объекта
         /// </summary>
         /// <returns>Текущее строковое значение атрибута Литера</returns>
-        private string GetLetterCurrentValue(long objectVersionID)
+        private string GetLetterCurrentValue(long ipsObjectVersionID)
         {
             string letterCurrentValue;
 
@@ -160,7 +160,7 @@ namespace NGM.IPS.Client.AssignLetter
             using (SessionKeeper sessionKeeper = new SessionKeeper())
             {
                 // Получаем по идентификатору версии объекта и идентификатору атрибута объект типа IDBAttribute
-                IDBAttribute attribute = sessionKeeper.Session.GetObjectAttribute(objectVersionID, letterAttributeID, false, false);
+                IDBAttribute attribute = sessionKeeper.Session.GetObjectAttribute(ipsObjectVersionID, letterAttributeID, false, false);
                 letterCurrentValue = attribute.AsString;
             }
 
@@ -172,7 +172,7 @@ namespace NGM.IPS.Client.AssignLetter
         /// Создание новой связи объекта (Детали или Сборочной единицы) и Документа-решения о присвоении литеры
         /// </summary>
         /// <returns>Идентификатор созданной связи</returns>
-        private long CreateNewRelationWithObjectAndLiteraAssigner(long objectID, long literaAssignerID)
+        private long CreateNewRelationWithObjectAndLiteraAssigner(long ipsObjectID, long literaAssignerID)
         {
             long newRelationID = -1;
 
@@ -188,7 +188,7 @@ namespace NGM.IPS.Client.AssignLetter
                     IDBRelationCollection relationCollection = sessionKeeper.Session.GetRelationCollection(literaAssignRelationID);
 
                     // Создаём новую связь типа "Основание для присвоения литеры"
-                    IDBRelation newRelation = relationCollection.Create(objectID, literaAssignerID);
+                    IDBRelation newRelation = relationCollection.Create(ipsObjectID, literaAssignerID);
                     newRelationID = newRelation.RelationID;
                 }
             }
@@ -198,6 +198,46 @@ namespace NGM.IPS.Client.AssignLetter
             }
 
             return newRelationID;
+        }
+
+        /// <summary>
+        /// Получаем документ-основание о присвоении литеры, связанный с объектом.
+        /// Считываем с него значение атрибута "Литера" и назначаем её объекту.
+        /// TODO пока всё делаем принудительно, но обязательно потербуется логика обработки литеры по старшинству
+        /// </summary>
+        /// <param name="ipsObjectID">Идентификатор версии объекта IPS</param>
+        /// <returns>true - если литера с документа успешно назначена на объект. false - если что-то пошло не так</returns>
+        private bool GetLetterFromDocAndAssignToObject(long ipsObjectID, long documentID)
+        {
+            bool result = false;
+
+            // Системный идентификатор атрибута Литера
+            int letterAttributeID = 1145;
+
+            try
+            {
+                using(SessionKeeper sessionKeeper = new SessionKeeper())
+                {
+                    IDBAttribute documentLetter = sessionKeeper.Session.GetObjectAttribute(documentID, letterAttributeID, false, false);
+                    string documentLetterValue = documentLetter.Value.ToString();
+                    MessageBox.Show($"С документа считана литера: {documentLetterValue}");
+
+
+                    IDBAttribute ipsObjectLetter = sessionKeeper.Session.GetObjectAttribute(ipsObjectID, letterAttributeID, false, false);
+                    string ipsObjectLetterValue = ipsObjectLetter.Value.ToString();
+                    MessageBox.Show($"С объекта считана литера: {ipsObjectLetterValue}");
+
+                    ipsObjectLetter.AsString = documentLetterValue;
+                    MessageBox.Show($"Объекту назначена литера:  {ipsObjectLetter.Value}");
+                    result = true;
+                }
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(exception.Message);
+            }
+
+            return result;
         }
     }
 }
