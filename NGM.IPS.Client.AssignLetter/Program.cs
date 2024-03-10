@@ -69,26 +69,25 @@ namespace NGM.IPS.Client.AssignLetter
 
                     if (IsObjectAssignable(ipsObjectID.ObjectType))
                     {
-                        string letterCurrentValue = GetLetterCurrentValue(ipsObjectID.ObjectID);
+                        string ipsAttributeLetterCurrentValue = GetLetterCurrentValue(ipsObjectID.ObjectID);
 
-                        if (string.IsNullOrWhiteSpace(letterCurrentValue))
+                        if (string.IsNullOrWhiteSpace(ipsAttributeLetterCurrentValue))
                         {
-                            MessageBox.Show("Литера документу не назначена. Продолжаем разговор!");
-                            long letterAssignerDocID = GetLetterAssignerDocId();
+                            long ipsDocumentLetterAssignerID = GetLetterAssignerDocId();
 
-                            long newRelationWithObjectAndLiteraAssigner = CreateNewRelationWithObjectAndLiteraAssigner(ipsObjectID.ObjectID, letterAssignerDocID);
-                            if (newRelationWithObjectAndLiteraAssigner == -1)
+                            long createdRelationBetweenObjectAndDocument = CreateNewRelationBetweenObjectAndLiteraAssigner(ipsObjectID.ObjectID, ipsDocumentLetterAssignerID);
+                            if (createdRelationBetweenObjectAndDocument == -1)
                             {
                                 MessageBox.Show("Новая связь не создана. Косячок-с...");
                             }
                             else
                             {
-                                GetLetterFromDocAndAssignToObject(ipsObjectID.ObjectID, letterAssignerDocID);
+                                GetLetterFromDocAndAssignToObject(ipsObjectID.ObjectID, ipsDocumentLetterAssignerID);
                             }
                         }
                         else
                         {
-                            MessageBox.Show($"Эй, Ара, тормози! У объекта уже есть литера: {letterCurrentValue}. Надо думать что придумать...");
+                            MessageBox.Show($"Эй, Ара, тормози! У объекта уже есть литера: {ipsAttributeLetterCurrentValue}. Надо думать что придумать...");
                         }
                     }
                     else
@@ -119,14 +118,14 @@ namespace NGM.IPS.Client.AssignLetter
         /// <summary>
         /// Проверка выделенных в Навигаторе объектов IPS на возможность присвоения литеры
         /// </summary>
-        /// <param name="ipsObjectType">Тип выделенного объекта IPS</param>
+        /// <param name="ipsObjectTypeID">Идентификатор типа выделенного объекта IPS</param>
         /// <returns>true - если на выбранный тип объектов можно назначить литеру</returns>
-        private bool IsObjectAssignable(int ipsObjectType)
+        private bool IsObjectAssignable(int ipsObjectTypeID)
         {
             int detailObjectID = 1052;
             int assemblyObjectID = 1074;
 
-            return (ipsObjectType == detailObjectID) || (ipsObjectType == assemblyObjectID);
+            return (ipsObjectTypeID == detailObjectID) || (ipsObjectTypeID == assemblyObjectID);
         }
 
 
@@ -137,13 +136,13 @@ namespace NGM.IPS.Client.AssignLetter
         private long GetLetterAssignerDocId()
         {
             // Получаем целочисленное значение типа объекта IPS по его GUID
-            int letterAssignerDocTypeID = MetaDataHelper.GetObjectTypeID(new Guid("95984126-f9fa-452e-b4ce-2bb4572bb347"));
+            int ipsDocumentLetterAssignerID = MetaDataHelper.GetObjectTypeID(new Guid("95984126-f9fa-452e-b4ce-2bb4572bb347"));
 
             // Отображаем окно выбора объекта IPS. Используем вариант "попроще" - SelectObjects(). Аргументами SelectionOptions настраиваем процесс выбора объектов в окне. Удобненько.
             // Так же существует вариант "пожощще" - Select(), но там нужно разбираться с дескрипторами окон и прочей гадостью. Фу.
-            long[] letterAssignerDocsIDs = SelectionWindow.SelectObjects("Выберите объект", "Выберите документ-решение о присвоении литеры", letterAssignerDocTypeID, SelectionOptions.HideTree | SelectionOptions.SelectObjects | SelectionOptions.DisableMultiselect);
+            long[] ipsDocumentLetterAssignerIDs = SelectionWindow.SelectObjects("Выберите объект", "Выберите документ-решение о присвоении литеры", ipsDocumentLetterAssignerID, SelectionOptions.HideTree | SelectionOptions.SelectObjects | SelectionOptions.DisableMultiselect);
 
-            return letterAssignerDocsIDs.Length == 1 ? letterAssignerDocsIDs[0] : -1L;
+            return ipsDocumentLetterAssignerIDs.Length == 1 ? ipsDocumentLetterAssignerIDs[0] : -1L;
         }
 
         /// <summary>
@@ -152,19 +151,19 @@ namespace NGM.IPS.Client.AssignLetter
         /// <returns>Текущее строковое значение атрибута Литера</returns>
         private string GetLetterCurrentValue(long ipsObjectVersionID)
         {
-            string letterCurrentValue;
+            string ipsAttributeLetterCurrentValue;
 
             // Значение атрибута Идентификатор аттрибута Литера
-            int letterAttributeID = 1145;
+            int ipsAttributeLetterID = 1145;
 
             using (SessionKeeper sessionKeeper = new SessionKeeper())
             {
                 // Получаем по идентификатору версии объекта и идентификатору атрибута объект типа IDBAttribute
-                IDBAttribute attribute = sessionKeeper.Session.GetObjectAttribute(ipsObjectVersionID, letterAttributeID, false, false);
-                letterCurrentValue = attribute.AsString;
+                IDBAttribute attribute = sessionKeeper.Session.GetObjectAttribute(ipsObjectVersionID, ipsAttributeLetterID, false, false);
+                ipsAttributeLetterCurrentValue = attribute.AsString;
             }
 
-            return letterCurrentValue;
+            return ipsAttributeLetterCurrentValue;
         }
 
 
@@ -172,24 +171,23 @@ namespace NGM.IPS.Client.AssignLetter
         /// Создание новой связи объекта (Детали или Сборочной единицы) и Документа-решения о присвоении литеры
         /// </summary>
         /// <returns>Идентификатор созданной связи</returns>
-        private long CreateNewRelationWithObjectAndLiteraAssigner(long ipsObjectID, long literaAssignerID)
+        private long CreateNewRelationBetweenObjectAndLiteraAssigner(long ipsObjectID, long literaAssignerID)
         {
-            long newRelationID = -1;
+            long createdRelationBetweenObjectAndDocumentID = -1;
 
             // Идентификатор типа связи "Основание для присвоения литеры"
             // ToDo На разных установках IPS будет отличаться, необходо вынести в файл конфигурации
-            int literaAssignRelationID = 1212;
+            int ipsRelationLiteraAssignID = 1212;
 
             try
             {
                 using(SessionKeeper sessionKeeper = new SessionKeeper())
                 {
                     // Получаем коллекцию связей типа "Основание для присвоения литеры"
-                    IDBRelationCollection relationCollection = sessionKeeper.Session.GetRelationCollection(literaAssignRelationID);
+                    IDBRelationCollection ipsRelationLetterAssignIDCollection = sessionKeeper.Session.GetRelationCollection(ipsRelationLiteraAssignID);
 
                     // Создаём новую связь типа "Основание для присвоения литеры"
-                    IDBRelation newRelation = relationCollection.Create(ipsObjectID, literaAssignerID);
-                    newRelationID = newRelation.RelationID;
+                    createdRelationBetweenObjectAndDocumentID = ipsRelationLetterAssignIDCollection.Create(ipsObjectID, literaAssignerID).RelationID;
                 }
             }
             catch (Exception exception)
@@ -197,7 +195,7 @@ namespace NGM.IPS.Client.AssignLetter
                 MessageBox.Show(exception.Message);
             }
 
-            return newRelationID;
+            return createdRelationBetweenObjectAndDocumentID;
         }
 
         /// <summary>
@@ -218,17 +216,19 @@ namespace NGM.IPS.Client.AssignLetter
             {
                 using(SessionKeeper sessionKeeper = new SessionKeeper())
                 {
-                    IDBAttribute documentLetter = sessionKeeper.Session.GetObjectAttribute(documentID, letterAttributeID, false, false);
-                    string documentLetterValue = documentLetter.Value.ToString();
-                    MessageBox.Show($"С документа считана литера: {documentLetterValue}");
+                    // По идентификатору документа и идентификатору атрибута Литера получаем значение атрибута с документа
+                    IDBAttribute ipsDocumentLetterAttrubute = sessionKeeper.Session.GetObjectAttribute(documentID, letterAttributeID, false, false);
+                    string ipsDocumentLetterAttributeValue = ipsDocumentLetterAttrubute.Value.ToString();
+                    MessageBox.Show($"С документа считана литера: {ipsDocumentLetterAttributeValue}");
 
 
-                    IDBAttribute ipsObjectLetter = sessionKeeper.Session.GetObjectAttribute(ipsObjectID, letterAttributeID, false, false);
-                    string ipsObjectLetterValue = ipsObjectLetter.Value.ToString();
-                    MessageBox.Show($"С объекта считана литера: {ipsObjectLetterValue}");
+                    // По идентификатору объекта и идентификатору атрибута Литера получаем значение атрибута с объекта
+                    IDBAttribute ipsObjectLetterAttribute = sessionKeeper.Session.GetObjectAttribute(ipsObjectID, letterAttributeID, false, false);
+                    string ipsObjectLetterAttributeValue = ipsObjectLetterAttribute.Value.ToString();
+                    MessageBox.Show($"С объекта считана литера: {ipsObjectLetterAttributeValue}");
 
-                    ipsObjectLetter.AsString = documentLetterValue;
-                    MessageBox.Show($"Объекту назначена литера:  {ipsObjectLetter.Value}");
+                    ipsObjectLetterAttribute.AsString = ipsDocumentLetterAttributeValue;
+                    MessageBox.Show($"Объекту назначена литера:  {ipsObjectLetterAttribute.Value}");
                     result = true;
                 }
             }
